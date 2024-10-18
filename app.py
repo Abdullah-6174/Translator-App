@@ -1,101 +1,81 @@
 import torch
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, Seq2SeqTrainer, Seq2SeqTrainingArguments
+from transformers import T5Tokenizer, T5ForConditionalGeneration
 from datasets import load_dataset
-import evaluate  # Import evaluate instead of load_metric
-import streamlit as st
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-
+from transformers import Trainer, TrainingArguments
 
 # Load the dataset
 dataset = load_dataset("Alisaeed001/EnglishToRomanUrdu")
 
 # Load the tokenizer and model
-model_checkpoint = "Helsinki-NLP/opus-mt-en-hi"
-tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
-model = AutoModelForSeq2SeqLM.from_pretrained(model_checkpoint)
+model_name = "t5-small"  # You can choose a larger model if needed
+tokenizer = T5Tokenizer.from_pretrained(model_name)
+model = T5ForConditionalGeneration.from_pretrained(model_name)
 
-# Preprocessing function for tokenizing
+# Preprocess the dataset
 def preprocess_function(examples):
-    inputs = examples["English"]
-    targets = examples["Roman Urdu"]
+    inputs = examples['english']
+    targets = examples['roman_urdu']
     model_inputs = tokenizer(inputs, max_length=128, truncation=True)
+    with tokenizer.as_target_tokenizer():
+        labels = tokenizer(targets, max_length=128, truncation=True)
 
-    # Tokenize the target with the `text_target` keyword argument
-    labels = tokenizer(targets, max_length=128, truncation=True)
     model_inputs["labels"] = labels["input_ids"]
     return model_inputs
 
-# Preprocess the dataset
-tokenized_datasets = dataset.map(preprocess_function, batched=True)
+tokenized_dataset = dataset.map(preprocess_function, batched=True)
 
-# Set training arguments
-batch_size = 8
-training_args = Seq2SeqTrainingArguments(
+# Define training arguments
+training_args = TrainingArguments(
     output_dir="./results",
     evaluation_strategy="epoch",
     learning_rate=2e-5,
-    per_device_train_batch_size=batch_size,
-    per_device_eval_batch_size=batch_size,
-    weight_decay=0.01,
-    save_total_limit=3,
+    per_device_train_batch_size=8,
     num_train_epochs=3,
-    predict_with_generate=True,
-    logging_dir="./logs",
-    logging_steps=10,
 )
 
-# Define metric for evaluation
-metric = evaluate.load("sacrebleu")  # Use evaluate.load to load the metric
-
-def compute_metrics(eval_preds):
-    preds, labels = eval_preds
-    decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
-    
-    # Replace -100 in the labels as we can't decode them
-    labels = [[(label if label != -100 else tokenizer.pad_token_id) for label in label] for label in labels]
-    decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
-
-    # Compute BLEU score
-    result = metric.compute(predictions=decoded_preds, references=decoded_labels)
-    return {"bleu": result["score"]}
-
-# Initialize the Trainer
-trainer = Seq2SeqTrainer(
+# Create the Trainer
+trainer = Trainer(
     model=model,
     args=training_args,
-    train_dataset=tokenized_datasets["train"],
-    eval_dataset=tokenized_datasets["test"],
-    tokenizer=tokenizer,
-    compute_metrics=compute_metrics,
+    train_dataset=tokenized_dataset["train"],
+    eval_dataset=tokenized_dataset["validation"],
 )
 
 # Train the model
 trainer.train()
 
-# Save the fine-tuned model
-trainer.save_model("fine-tuned-english-to-roman-urdu")
-tokenizer.save_pretrained("fine-tuned-english-to-roman-urdu")
+# Save the model and tokenizer
+model.save_pretrained("roman_urdu_model")
+tokenizer.save_pretrained("roman_urdu_model")
 
-# Load the fine-tuned model and tokenizer
-model_name = "fine-tuned-english-to-roman-urdu"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+
+import streamlit as st
+from transformers import T5Tokenizer, T5ForConditionalGeneration
+
+# Load the model and tokenizer
+model_name = "roman_urdu_model"  # Path to the saved model
+tokenizer = T5Tokenizer.from_pretrained(model_name)
+model = T5ForConditionalGeneration.from_pretrained(model_name)
+
+# Define a function to convert English to Roman Urdu
+def translate_to_roman_urdu(text):
+    input_ids = tokenizer.encode(text, return_tensors="pt")
+    with torch.no_grad():
+        output_ids = model.generate(input_ids)
+    return tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
 # Streamlit app
 st.title("English to Roman Urdu Translator")
+st.write("Enter English text to convert it to Roman Urdu:")
 
-# Input prompt from the user
-input_text = st.text_area("Enter English text:")
+# Input text box
+user_input = st.text_area("Input English text")
 
+# Translate button
 if st.button("Translate"):
-    # Tokenize input text
-    inputs = tokenizer.encode(input_text, return_tensors="pt")
+    if user_input:
+        translation = translate_to_roman_urdu(user_input)
+        st.success(f"Roman Urdu: {translation}")
+    else:
+        st.error("Please enter some text to translate.")
 
-    # Generate translation
-    with torch.no_grad():
-        outputs = model.generate(inputs)
-
-    # Decode and display the translation
-    translation = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    st.subheader("Roman Urdu Translation")
-    st.write(translation)
