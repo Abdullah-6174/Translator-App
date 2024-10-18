@@ -1,3 +1,6 @@
+
+pip install torch torchvision torchaudio sentencepiece transformers datasets streamlit
+
 import torch
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 from datasets import load_dataset
