@@ -1,26 +1,25 @@
-# Import necessary libraries
 import streamlit as st
-from transformers import pipeline
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
-# Load the Hugging Face translation model
-# For demonstration, I'm assuming you're using a model that translates English to Roman Urdu.
-# Replace "translation_model_name" with the name of the actual model from Hugging Face.
-@st.cache_resource
-def load_model():
-    model = pipeline("translation_en_to_ro_ur", model="translation_model_name")
-    return model
+# Load the model and tokenizer from Hugging Face
+MODEL_NAME = "your-model-name"  # Replace with the actual model name
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
 
-# Streamlit app setup
-st.title("English to Roman Urdu Translation")
-st.write("Enter an English prompt below to get the translation in Roman Urdu:")
+# Streamlit app
+st.title("English to Roman Urdu Translator")
 
-# Input box for user prompt
-english_prompt = st.text_input("Enter your English text:")
+# Input prompt from the user
+input_text = st.text_area("Enter English text:")
 
-# Load the model
-translator = load_model()
-
-# Perform translation when the user provides input
-if english_prompt:
-    translation = translator(english_prompt)[0]['translation_text']
-    st.write(f"**Roman Urdu Translation:** {translation}")
+if st.button("Translate"):
+    # Encode input text
+    inputs = tokenizer.encode(input_text, return_tensors="pt")
+    
+    # Generate translation (in Roman Urdu)
+    outputs = model.generate(inputs)
+    
+    # Decode and display the translated text
+    roman_urdu_translation = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    st.subheader("Roman Urdu Translation")
+    st.write(roman_urdu_translation)
