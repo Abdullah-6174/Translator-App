@@ -1,5 +1,2 @@
 transformers
 streamlit
-torch
-datasets
-sentencepiece
