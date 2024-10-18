@@ -1,8 +1,10 @@
 import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, Seq2SeqTrainer, Seq2SeqTrainingArguments
-from datasets import load_dataset, load_metric
+from datasets import load_dataset
+import evaluate  # Import evaluate instead of load_metric
 import streamlit as st
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+
 
 # Load the dataset
 dataset = load_dataset("Alisaeed001/EnglishToRomanUrdu")
@@ -43,7 +45,7 @@ training_args = Seq2SeqTrainingArguments(
 )
 
 # Define metric for evaluation
-metric = load_metric("sacrebleu")
+metric = evaluate.load("sacrebleu")  # Use evaluate.load to load the metric
 
 def compute_metrics(eval_preds):
     preds, labels = eval_preds
