@@ -1,2 +1,10 @@
 transformers
 streamlit
+torch
+datasets
+AutoTokenizer
+AutoModelForSeq2SeqLM
+Seq2SeqTrainer
+Seq2SeqTrainingArguments
+load_dataset
+load_metric
