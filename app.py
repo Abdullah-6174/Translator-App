@@ -2,7 +2,6 @@ import torch
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 from datasets import load_dataset
 from transformers import Trainer, TrainingArguments
-import sentencepiece as spm
 
 
 # Load the dataset
@@ -15,8 +14,17 @@ model = T5ForConditionalGeneration.from_pretrained(model_name)
 
 # Preprocess the dataset
 def preprocess_function(examples):
-    inputs = examples['english']
-    targets = examples['roman_urdu']
+    inputs = []
+    targets = []
+
+    for text in examples['text']:  # Assuming the loaded dataset has a column 'text'
+        # Split the text using the appropriate markers
+        if "[INST]" in text and "[/INST]" in text:
+            english_part = text.split("[INST]")[1].split("[/INST]")[0].strip()
+            roman_urdu_part = text.split("[/INST]")[1].split("</s>")[0].strip()  # Remove the </s> tag
+            inputs.append(english_part)
+            targets.append(roman_urdu_part)
+
     model_inputs = tokenizer(inputs, max_length=128, truncation=True)
     with tokenizer.as_target_tokenizer():
         labels = tokenizer(targets, max_length=128, truncation=True)
@@ -50,12 +58,12 @@ trainer.train()
 model.save_pretrained("roman_urdu_model")
 tokenizer.save_pretrained("roman_urdu_model")
 
-
+# Streamlit app remains the same
 import streamlit as st
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 
 # Load the model and tokenizer
-model_name = "roman_urdu_model"  # Path to the saved model
+model_name = "roman_urdu_model"
 tokenizer = T5Tokenizer.from_pretrained(model_name)
 model = T5ForConditionalGeneration.from_pretrained(model_name)
 
@@ -80,4 +88,3 @@ if st.button("Translate"):
         st.success(f"Roman Urdu: {translation}")
     else:
         st.error("Please enter some text to translate.")
-
