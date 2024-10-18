@@ -1,10 +1,9 @@
-
-pip install torch torchvision torchaudio sentencepiece transformers datasets streamlit
-
 import torch
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 from datasets import load_dataset
 from transformers import Trainer, TrainingArguments
+import sentencepiece as spm
+
 
 # Load the dataset
 dataset = load_dataset("Alisaeed001/EnglishToRomanUrdu")
